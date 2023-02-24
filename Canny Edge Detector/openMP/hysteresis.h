@@ -5,24 +5,24 @@
 class Hysteresis
 {
 private:
-    std::vector<double> arr;
+	std::vector<double> arr;
 public:
 	Hysteresis();
 	double** edges;
 	void getHysteresis(double** image, int imgHeight, int imgWidth);
 	void setupArray(double** image, int height, int width);
-    double** copyMatrix(double** image, int height, int width);
-    int percentile(std::vector<double> vect, int percent);
-    bool neighbors8(double** image, int height, int width, int x, int y);
-    void deallocateMatrix(int rows);
+	double** copyMatrix(double** image, int height, int width);
+	int percentile(std::vector<double> vect, int percent);
+	bool neighbors8(double** image, int height, int width, int x, int y);
+	void deallocateMatrix(int rows);
 };
 
 Hysteresis::Hysteresis() {
-    edges = NULL;
+	edges = NULL;
 }
 
 void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
-    int tHi, tLo;
+    int tHi, tLo, i, x, y;
     bool neighbors8Bool;
     double** hysteresisImage;
 
@@ -33,9 +33,9 @@ void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
     tLo = (1 / 5) * tHi;
 
     hysteresisImage = copyMatrix(image, imgHeight, imgWidth);
-    #pragma omp parallel for collapse(2)
-        for (int x = 0; x < imgHeight; x++) {
-            for (int y = 0; y < imgWidth; y++) {
+    #pragma omp parallel for private(y) collapse(2)
+        for (x = 0; x < imgHeight; x++) {
+            for (y = 0; y < imgWidth; y++) {
                 if (image[x][y] > tHi)
                     hysteresisImage[x][y] = 255;
                 else if (image[x][y] > tLo)
@@ -46,9 +46,9 @@ void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
         }
 
     this->edges = copyMatrix(hysteresisImage, imgHeight, imgWidth);
-    #pragma omp parallel for collapse(2)
-        for (int x = 0; x < imgHeight; x++) {
-            for (int y = 0; y < imgWidth; y++) {
+    #pragma omp parallel for private(y) collapse(2)
+        for (x = 0; x < imgHeight; x++) {
+            for (y = 0; y < imgWidth; y++) {
                 if (hysteresisImage[x][y] == 125) {
                     neighbors8Bool = neighbors8(hysteresisImage, imgHeight, imgWidth, x, y);
                     if (neighbors8Bool == true)
@@ -60,7 +60,7 @@ void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
         }
 
     #pragma omp parallel for
-        for (int i = 0; i < imgHeight; i++)
+        for (i = 0; i < imgHeight; i++)
             free(hysteresisImage[i]);
     free(hysteresisImage);
 
@@ -69,9 +69,10 @@ void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
 
 void Hysteresis::setupArray(double** image, int height, int width) {
     double value;
+    int i, j;
     
-	for (int i = 0; i < height; i++) {
-	    for (int j = 0; j < width; j++) {
+	for (i = 0; i < height; i++) {
+	    for (j = 0; j < width; j++) {
 		value = image[i][j];
 		this->arr.push_back(value);
 	    }
@@ -82,6 +83,7 @@ void Hysteresis::setupArray(double** image, int height, int width) {
 
 double** Hysteresis::copyMatrix(double** image, int height, int width) {
     double** newMatrix;
+    int i, j;
 
     newMatrix = (double**)malloc(sizeof(double*) * height);
     if (newMatrix == NULL) {
@@ -90,7 +92,7 @@ double** Hysteresis::copyMatrix(double** image, int height, int width) {
     }
 
     #pragma omp parallel for
-        for (int i = 0; i < height; i++) {
+        for (i = 0; i < height; i++) {
             newMatrix[i] = (double*)malloc(sizeof(double) * width);
             if (newMatrix[i] == NULL) {
                 std::cout << "Error allocating memory" << std::endl;
@@ -98,9 +100,9 @@ double** Hysteresis::copyMatrix(double** image, int height, int width) {
             }
         }
 
-    #pragma omp parallel for collapse(2)
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
+    #pragma omp parallel for private(j) collapse(2)
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 newMatrix[i][j] = image[i][j];
             }
         }
@@ -111,16 +113,17 @@ double** Hysteresis::copyMatrix(double** image, int height, int width) {
 int Hysteresis::percentile(std::vector<double> vect, int percent) {
     std::vector<double> prcVector;
     int n = vect.size();
+    int i;
     double p;
     double r;
     
-	for (int i = 0; i < n; i++) {
+	for (i = 0; i < n; i++) {
 	    p = 100 * (i + 0.5) / n;
 	    prcVector.push_back(p);
 	}
 
     #pragma omp parallel for
-        for (int i = 0; i < n; i++) {
+        for (i = 0; i < n; i++) {
             if (floor(prcVector[i]) == percent) {
                 r = vect[i];
             }
@@ -154,8 +157,10 @@ bool Hysteresis::neighbors8(double** image, int height, int width, int x, int y)
 }
 
 void Hysteresis::deallocateMatrix(int rows) {
+	int i;
+	
     #pragma omp parallel for
-        for (int i = 0; i < rows; i++) {
+        for (i = 0; i < rows; i++) {
             free(this->edges[i]);
         }
     free(this->edges);

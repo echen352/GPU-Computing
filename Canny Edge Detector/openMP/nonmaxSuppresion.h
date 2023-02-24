@@ -18,12 +18,13 @@ nonMaxSup::nonMaxSup() {
 void nonMaxSup::nonMaxSuppression(double** gxy, double** iangle, int gxyHeight, int gxyWidth) {
     double theta;
     double center;
+    int x, y;
 
     this->output = copyGXYtoOutput(gxy, gxyHeight, gxyWidth);
 
-    #pragma omp parallel for collapse(2)
-        for (int x = 0; x < gxyHeight; x++) {
-            for (int y = 0; y < gxyWidth; y++) {
+    #pragma omp parallel for private(y) collapse(2)
+        for (x = 0; x < gxyHeight; x++) {
+            for (y = 0; y < gxyWidth; y++) {
                 theta = iangle[x][y];
                 if (theta < 0)
                     theta += M_PI;
@@ -55,6 +56,7 @@ void nonMaxSup::nonMaxSuppression(double** gxy, double** iangle, int gxyHeight, 
 
 double** nonMaxSup::copyGXYtoOutput(double** gxy, int height, int width) {
     double** newMatrix;
+    int i, j;
 
     newMatrix = (double**)malloc(sizeof(double*) * height);
     if (newMatrix == NULL) {
@@ -63,7 +65,7 @@ double** nonMaxSup::copyGXYtoOutput(double** gxy, int height, int width) {
     }
 
     #pragma omp parallel for
-        for (int i = 0; i < height; i++) {
+        for (i = 0; i < height; i++) {
             newMatrix[i] = (double*)malloc(sizeof(double) * width);
             if (newMatrix[i] == NULL) {
                 std::cout << "Error allocating memory" << std::endl;
@@ -71,9 +73,9 @@ double** nonMaxSup::copyGXYtoOutput(double** gxy, int height, int width) {
             }
         }
 
-    #pragma omp parallel for collapse(2)
-        for (int i = 0; i < height; i++) {
-            for (int j = 0; j < width; j++) {
+    #pragma omp parallel for private(j) collapse(2)
+        for (i = 0; i < height; i++) {
+            for (j = 0; j < width; j++) {
                 newMatrix[i][j] = gxy[i][j];
             }
         }
@@ -82,8 +84,10 @@ double** nonMaxSup::copyGXYtoOutput(double** gxy, int height, int width) {
 }
 
 void nonMaxSup::deallocateMatrix(int rows) {
+	int i;
+	
     #pragma omp parallel for
-        for (int i = 0; i < rows; i++) {
+        for (i = 0; i < rows; i++) {
             free(this->output[i]);
         }
     free(this->output);

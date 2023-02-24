@@ -22,19 +22,20 @@ Gauss::Gauss() {
 
 double* Gauss::gaussian(double sigma) {
 	int a = round(2.5 * sigma - 0.5);
+	int i;
 	this->w = 2 * a + 1;
 	double sum = 0;
 
 	this->g = new double[this->w];
 
 	#pragma omp parallel for reduction(+:sum)
-		for (int i = 0; i < this->w; i++) {
+		for (i = 0; i < this->w; i++) {
 			this->g[i] = exp((-1 * (i - a) * (i - a)) / (2 * sigma * sigma));
 			sum += this->g[i];
 		}
 
 	#pragma omp parallel for
-		for (int i = 0; i < this->w; i++) {
+		for (i = 0; i < this->w; i++) {
 			this->g[i] /= sum;
 		}
 
@@ -43,19 +44,20 @@ double* Gauss::gaussian(double sigma) {
 
 double* Gauss::gaussianDeriv(double sigma) {
 	int a = round(2.5 * sigma - 0.5);
+	int i;
 	this->w = 2 * a + 1;
 	double sum = 0;
 
 	this->g_deriv = new double[this->w];
 
 	#pragma omp parallel for reduction(-:sum)
-		for (int i = 0; i < this->w; i++) {
+		for (i = 0; i < this->w; i++) {
 			this->g_deriv[i] = -1 * (i - a) * exp((-1 * (i - a) * (i - a)) / (2 * sigma * sigma));
 			sum -= i * this->g_deriv[i];
 		}
 
 	#pragma omp parallel for
-		for (int i = 0; i < this->w; i++) {
+		for (i = 0; i < this->w; i++) {
 			this->g_deriv[i] /= sum;
 		}
 
