@@ -1,22 +1,21 @@
 #define _USE_MATH_DEFINES
-
-#include <opencv2/core/core.hpp>
-#include <opencv2/highgui/highgui.hpp>
-#include <opencv2/imgproc.hpp>
-#include <opencv2/opencv.hpp>
+#define SIGMA 0.8
 
 #include "pgm.h"
 #include "gaussian.h"
 #include "gradient.h"
 #include "nonmaxSuppresion.h"
 #include "hysteresis.h"
+#include <chrono>
 
-#define SIGMA 0.8
+using namespace std::chrono;
 
 void writeOut(pgmImage image, double** matrixtoWrite, const char* outName, int imgHeight, int imgWidth);
 
 int main(int argc, char** argv)
 {
+	auto program_start = high_resolution_clock::now();
+	
 	pgmImage image;
 	Gauss gauss;
 	Gradient gradient;
@@ -38,38 +37,45 @@ int main(int argc, char** argv)
 	image.readImage(imageName);
 	imgHeight = image.getHeight();
 	imgWidth = image.getWidth();
+	
+	auto algorithm_start = high_resolution_clock::now();
 
 	gauss.gaussian(sigma);
 	gauss.gaussianDeriv(sigma);
 	gaussLength = gauss.getGaussianLength();
 
 	gradient.horizontalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
-	writeOut(image, gradient.horizontal, "C:\\Users\\ellis\\Desktop\\horizontalGradient.pgm", imgHeight, imgWidth);
 
 	gradient.verticalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
-	writeOut(image, gradient.vertical, "C:\\Users\\ellis\\Desktop\\verticalGradient.pgm", imgHeight, imgWidth);
 
 	gradient.magnitudeGradient(gradient.vertical, gradient.horizontal, imgHeight, imgWidth);
-	writeOut(image, gradient.magnitude, "C:\\Users\\ellis\\Desktop\\magnitudeGradient.pgm", imgHeight, imgWidth);
-	writeOut(image, gradient.gradient, "C:\\Users\\ellis\\Desktop\\iangleGradient.pgm", imgHeight, imgWidth);
 
 	suppression.nonMaxSuppression(gradient.magnitude, gradient.gradient, imgHeight, imgWidth);
-	writeOut(image, suppression.output, "C:\\Users\\ellis\\Desktop\\suppression.pgm", imgHeight, imgWidth);
 
 	hysteresis.getHysteresis(suppression.output, imgHeight, imgWidth);
-	writeOut(image, hysteresis.edges, "C:\\Users\\ellis\\Desktop\\edges.pgm", imgHeight, imgWidth);
-
-	/*cv::Mat greyImage = cv::Mat(imgHeight, imgWidth, CV_8U, hysteresis.edges);
-	cv::namedWindow("Edges", cv::WINDOW_AUTOSIZE);
-	cv::imshow("Edges", greyImage);
-	cv::waitKey(0);
-	cv::destroyAllWindows();*/
-
+	
+	auto algorithm_stop = high_resolution_clock::now();
+	
+	writeOut(image, gradient.horizontal, "horizontalGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.vertical, "verticalGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.magnitude, "magnitudeGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.gradient, "iangleGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, suppression.output, "suppression.pgm", imgHeight, imgWidth);
+	writeOut(image, hysteresis.edges, "edges.pgm", imgHeight, imgWidth);
+	
 	gauss.deallocateMatrix();
 	gradient.deallocateMatrix(imgHeight);
 	suppression.deallocateMatrix(imgHeight);
 	hysteresis.deallocateMatrix(imgHeight);
 	image.deallocateMatrix();
+	
+	auto program_stop = high_resolution_clock::now();
+	
+	auto algorithm_duration = duration_cast<microseconds>(algorithm_stop - algorithm_start);
+	std::cout << "Time taken by canny edge detector algorithm: " << algorithm_duration.count() << " us" << std::endl;
+	
+	auto program_duration = duration_cast<microseconds>(program_stop - program_start);
+	std::cout << "Total time taken by program: " << program_duration.count() << " us" << std::endl;
 	return 0;
 }
 

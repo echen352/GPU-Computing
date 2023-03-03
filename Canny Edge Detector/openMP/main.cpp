@@ -1,4 +1,5 @@
 #define _USE_MATH_DEFINES
+#define NUMTHREADS 4
 #define SIGMA 0.8
 
 #include "pgm.h"
@@ -41,7 +42,14 @@ int main(int argc, char** argv)
 	
 	auto algorithm_start = high_resolution_clock::now();
 	
-	#pragma omp parallel default(shared)
+	std::cout << "Max threads: " << omp_get_max_threads() << std::endl;
+	
+	std::cout << "Attempting to set " << NUMTHREADS << " threads" << std::endl;
+	//omp_set_dynamic(0);
+	//omp_set_num_threads(NUMTHREADS);
+	//std::cout << "Number of Threads set " << omp_get_num_threads() << std::endl;
+	
+	#pragma omp parallel num_threads(NUMTHREADS)
 	{
 		#pragma omp single
 		{
@@ -50,11 +58,15 @@ int main(int argc, char** argv)
 			#pragma omp task
 				gauss.gaussianDeriv(sigma);
 		}
+		#pragma omp critical
+			std::cout << "Thread Number: " << omp_get_thread_num() << std::endl;
 	}
+	
+	//std::cout << "Thread Count: " << omp_get_num_threads() << std::endl;
 	
 	gaussLength = gauss.getGaussianLength();
 	
-	#pragma omp parallel default(shared)
+	#pragma omp parallel num_threads(NUMTHREADS)
 	{
 		#pragma omp single
 		{
@@ -73,7 +85,7 @@ int main(int argc, char** argv)
 	
 	auto algorithm_stop = high_resolution_clock::now();
 	
-	#pragma omp parallel default(shared)
+	#pragma omp parallel
 	{
 		#pragma omp single
 		{
@@ -92,7 +104,7 @@ int main(int argc, char** argv)
 		}
 	}
 	
-	#pragma omp parallel default(shared)
+	#pragma omp parallel
 	{
 		#pragma omp single
 		{
@@ -122,20 +134,21 @@ int main(int argc, char** argv)
 void writeOut(pgmImage image, double** matrixtoWrite, const char* outName, int imgHeight, int imgWidth) {
 	int** outMatrix;
 	outMatrix = new int* [imgHeight];
-	#pragma omp parallel for
-		for (int i = 0; i < imgHeight; i++)
-			outMatrix[i] = new int[imgWidth];
-	#pragma omp parallel for collapse(2)
-		for (int i = 0; i < imgHeight; i++) {
-			for (int j = 0; j < imgWidth; j++) {
-				outMatrix[i][j] = (int)matrixtoWrite[i][j];
-			}
+	
+	for (int i = 0; i < imgHeight; i++)
+		outMatrix[i] = new int[imgWidth];
+		
+	for (int i = 0; i < imgHeight; i++) {
+		for (int j = 0; j < imgWidth; j++) {
+			outMatrix[i][j] = (int)matrixtoWrite[i][j];
 		}
+	}
 
 	image.writeImage(outName, outMatrix);
-	#pragma omp parallel for
-		for (int i = 0; i < imgHeight; i++)
-			delete[] outMatrix[i];
+	
+	for (int i = 0; i < imgHeight; i++)
+		delete[] outMatrix[i];
 	delete[] outMatrix;
+	
 	return;
 }

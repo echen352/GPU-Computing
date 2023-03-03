@@ -123,7 +123,6 @@ double** Gradient::transposeToVertical(double* matrix, int height, int width) {
 
 	for (int i = 0; i < height; i++) {
 		transposedMatrix[i][0] = matrix[i];
-		std::cout << transposedMatrix[i][0] << std::endl;
 	}
 	return transposedMatrix;
 }
@@ -135,7 +134,6 @@ double** Gradient::transposeToHorizontal(double* matrix, int height, int width) 
 
 	for (int i = 0; i < width; i++) {
 		transposedMatrix[0][i] = matrix[i];
-		std::cout << transposedMatrix[0][i] << std::endl;
 	}
 	return transposedMatrix;
 }
