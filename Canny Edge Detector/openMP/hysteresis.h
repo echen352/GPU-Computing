@@ -34,32 +34,32 @@ void Hysteresis::getHysteresis(double** image, int imgHeight, int imgWidth) {
 	
 	hysteresisImage = copyMatrix(image, imgHeight, imgWidth);
 	
-	#pragma omp parallel for private(y) collapse(2)
-		for (x = 0; x < imgHeight; x++) {
-		    for (y = 0; y < imgWidth; y++) {
-			if (image[x][y] > tHi)
-			    hysteresisImage[x][y] = 255;
-			else if (image[x][y] > tLo)
-			    hysteresisImage[x][y] = 125;
-			else
-			    hysteresisImage[x][y] = 0;
-		    }
-		}
+	#pragma omp parallel for private(y) num_threads(NUMTHREADS)
+	for (x = 0; x < imgHeight; x++) {
+	    for (y = 0; y < imgWidth; y++) {
+		if (image[x][y] > tHi)
+		    hysteresisImage[x][y] = 255;
+		else if (image[x][y] > tLo)
+		    hysteresisImage[x][y] = 125;
+		else
+		    hysteresisImage[x][y] = 0;
+	    }
+	}
 
 	this->edges = copyMatrix(hysteresisImage, imgHeight, imgWidth);
 	
-	#pragma omp parallel for private(y, neighbors8Bool) collapse(2)
-		for (x = 0; x < imgHeight; x++) {
-		    for (y = 0; y < imgWidth; y++) {
-			if (hysteresisImage[x][y] == 125) {
-			    neighbors8Bool = neighbors8(hysteresisImage, imgHeight, imgWidth, x, y);
-			    if (neighbors8Bool == true)
-				this->edges[x][y] = 255;
-			    else
-				this->edges[x][y] = 0;
-			}
-		    }
+	#pragma omp parallel for private(y, neighbors8Bool) num_threads(NUMTHREADS)
+	for (x = 0; x < imgHeight; x++) {
+	    for (y = 0; y < imgWidth; y++) {
+		if (hysteresisImage[x][y] == 125) {
+		    neighbors8Bool = neighbors8(hysteresisImage, imgHeight, imgWidth, x, y);
+		    if (neighbors8Bool == true)
+			this->edges[x][y] = 255;
+		    else
+			this->edges[x][y] = 0;
 		}
+	    }
+	}
 
 	for (i = 0; i < imgHeight; i++)
 		free(hysteresisImage[i]);
@@ -99,13 +99,13 @@ double** Hysteresis::copyMatrix(double** image, int height, int width) {
 		exit(EXIT_FAILURE);
 	    }
 	}
-
-	#pragma omp parallel for private(j) collapse(2)
-		for (i = 0; i < height; i++) {
-		    for (j = 0; j < width; j++)
-			newMatrix[i][j] = image[i][j];
-		}
-
+	
+	#pragma omp parallel for private(j) num_threads(NUMTHREADS)
+	for (i = 0; i < height; i++) {
+	    for (j = 0; j < width; j++)
+		newMatrix[i][j] = image[i][j];
+	}
+			
 	return newMatrix;
 }
 

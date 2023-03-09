@@ -34,31 +34,17 @@ void Gradient::horizontalGradient(double** image, double* gauss, double* gaussDe
 	double** flippedGaussDeriv;
 	int i;
 	
-	#pragma omp parallel
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				verticalGauss = transposeToVertical(gauss, gaussLength, 1);
-			#pragma omp task
-				horizontalGaussDeriv = allocateGradientMatrix(1, gaussLength);
-		}
-	}
-	
-	#pragma omp parallel for
-		for (i = 0; i < gaussLength; i++)
-			horizontalGaussDeriv[0][i] = gaussDeriv[i];
-	
-	#pragma omp parallel
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				tempHorizontal = convolve(image, verticalGauss, imgHeight, imgWidth, gaussLength, 1);
-			#pragma omp task
-				flippedGaussDeriv = reverseSign(horizontalGaussDeriv, 1, gaussLength, 0);
-		}
-	}
+	verticalGauss = transposeToVertical(gauss, gaussLength, 1);
+
+	horizontalGaussDeriv = allocateGradientMatrix(1, gaussLength);
+
+	#pragma omp parallel for num_threads(NUMTHREADS)
+	for (i = 0; i < gaussLength; i++)
+		horizontalGaussDeriv[0][i] = gaussDeriv[i];
+
+	tempHorizontal = convolve(image, verticalGauss, imgHeight, imgWidth, gaussLength, 1);
+
+	flippedGaussDeriv = reverseSign(horizontalGaussDeriv, 1, gaussLength, 0);
 
 	this->horizontal = convolve(tempHorizontal, flippedGaussDeriv, imgHeight, imgWidth, 1, gaussLength);
 	
@@ -88,28 +74,14 @@ void Gradient::verticalGradient(double** image, double* gauss, double* gaussDeri
 	double** flippedGaussDeriv;
 	int i;
 
-	#pragma omp parallel default(shared)
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				horizontalGauss = transposeToHorizontal(gauss, 1, gaussLength);
-			#pragma omp task
-				verticalGaussDeriv = transposeToVertical(gaussDeriv, gaussLength, 1);
-		}
-	}
-	
-	#pragma omp parallel default(shared)
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				tempVertical = convolve(image, horizontalGauss, imgHeight, imgWidth, 1, gaussLength);
-			#pragma omp task
-				flippedGaussDeriv = reverseSign(verticalGaussDeriv, gaussLength, 1, 1);
-		}
-	}
-	
+	horizontalGauss = transposeToHorizontal(gauss, 1, gaussLength);
+
+	verticalGaussDeriv = transposeToVertical(gaussDeriv, gaussLength, 1);
+
+	tempVertical = convolve(image, horizontalGauss, imgHeight, imgWidth, 1, gaussLength);
+
+	flippedGaussDeriv = reverseSign(verticalGaussDeriv, gaussLength, 1, 1);
+				
 	this->vertical = convolve(tempVertical, flippedGaussDeriv, imgHeight, imgWidth, gaussLength, 1);
 
 	for (i = 0; i < 1; i++ )
@@ -138,16 +110,16 @@ void Gradient::magnitudeGradient(double** vertical, double** horizontal, int hei
 
 	this->magnitude = allocateGradientMatrix(height, width);
 	this->gradient = allocateGradientMatrix(height, width);
-
-	#pragma omp parallel for private(y, verticalSquare, horizontalSquare) collapse(2)
-		for (x = 0; x < height; x++) {
-			for (y = 0; y < width; y++) {
-				verticalSquare = (vertical[x][y])*(vertical[x][y]);
-				horizontalSquare = (horizontal[x][y]) * (horizontal[x][y]);
-				this->magnitude[x][y] = sqrt(verticalSquare + horizontalSquare);
-				this->gradient[x][y] = atan2(horizontal[x][y], vertical[x][y]);
-			}
+	
+	# pragma omp parallel for private(y, verticalSquare, horizontalSquare) num_threads(NUMTHREADS)
+	for (x = 0; x < height; x++) {
+		for (y = 0; y < width; y++) {
+			verticalSquare = (vertical[x][y])*(vertical[x][y]);
+			horizontalSquare = (horizontal[x][y]) * (horizontal[x][y]);
+			this->magnitude[x][y] = sqrt(verticalSquare + horizontalSquare);
+			this->gradient[x][y] = atan2(horizontal[x][y], vertical[x][y]);
 		}
+	}
 
 	return;
 }
@@ -158,10 +130,8 @@ double** Gradient::transposeToVertical(double* matrix, int height, int width) {
 
 	transposedMatrix = allocateGradientMatrix(height, width);
 
-	#pragma omp parallel for
-		for (i = 0; i < height; i++) {
-			transposedMatrix[i][0] = matrix[i];
-		}
+	for (i = 0; i < height; i++)
+		transposedMatrix[i][0] = matrix[i];
 		
 	return transposedMatrix;
 }
@@ -172,10 +142,8 @@ double** Gradient::transposeToHorizontal(double* matrix, int height, int width) 
 
 	transposedMatrix = allocateGradientMatrix(height, width);
 
-	#pragma omp parallel for
-		for (i = 0; i < width; i++) {
-			transposedMatrix[0][i] = matrix[i];
-		}
+	for (i = 0; i < width; i++)
+		transposedMatrix[0][i] = matrix[i];
 		
 	return transposedMatrix;
 }
@@ -187,16 +155,12 @@ double** Gradient::reverseSign(double** matrix, int height, int width, int dir) 
 	reversedMatrix = allocateGradientMatrix(height, width);
 
 	if (dir == 1) {
-		#pragma omp parallel for
-			for (i = 0; i < height; i++) {
-				reversedMatrix[i][0] = matrix[i][0] * -1;
-			}
+		for (i = 0; i < height; i++)
+			reversedMatrix[i][0] = matrix[i][0] * -1;
 	}
 	else if (dir == 0) {
-		#pragma omp parallel for
-			for (i = 0; i < width; i++) {
-				reversedMatrix[0][i] = matrix[0][i] * -1;
-			}
+		for (i = 0; i < width; i++)
+			reversedMatrix[0][i] = matrix[0][i] * -1;
 	}
 
 	return reversedMatrix;

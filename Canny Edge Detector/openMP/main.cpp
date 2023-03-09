@@ -1,5 +1,5 @@
 #define _USE_MATH_DEFINES
-#define NUMTHREADS 4
+#define NUMTHREADS 16
 #define SIGMA 0.8
 
 #include "pgm.h"
@@ -7,12 +7,15 @@
 #include "gradient.h"
 #include "nonmaxSuppresion.h"
 #include "hysteresis.h"
+#include <fstream>
+#include <string>
 #include <chrono>
 #include <omp.h>
 
 using namespace std::chrono;
 
 void writeOut(pgmImage image, double** matrixtoWrite, const char* outName, int imgHeight, int imgWidth);
+void saveTime(int algorithm_duration, int imgHeight);
 
 int main(int argc, char** argv)
 {
@@ -26,7 +29,7 @@ int main(int argc, char** argv)
 
 	const char* imageName;
 	double sigma = SIGMA;
-	int imgHeight, imgWidth, gaussLength;
+	int imgHeight, imgWidth, gaussLength, algoTime;
 
 	if (argc == 2) {
 		imageName = argv[1];
@@ -40,42 +43,16 @@ int main(int argc, char** argv)
 	imgHeight = image.getHeight();
 	imgWidth = image.getWidth();
 	
+	std::cout << "Number of Processors: " << omp_get_num_procs() << std::endl;
+	std::cout << "Attempting to Set Num Threads: " << NUMTHREADS << std::endl;
 	auto algorithm_start = high_resolution_clock::now();
 	
-	std::cout << "Max threads: " << omp_get_max_threads() << std::endl;
-	
-	std::cout << "Attempting to set " << NUMTHREADS << " threads" << std::endl;
-	//omp_set_dynamic(0);
-	//omp_set_num_threads(NUMTHREADS);
-	//std::cout << "Number of Threads set " << omp_get_num_threads() << std::endl;
-	
-	#pragma omp parallel num_threads(NUMTHREADS)
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				gauss.gaussian(sigma);
-			#pragma omp task
-				gauss.gaussianDeriv(sigma);
-		}
-		#pragma omp critical
-			std::cout << "Thread Number: " << omp_get_thread_num() << std::endl;
-	}
-	
-	//std::cout << "Thread Count: " << omp_get_num_threads() << std::endl;
-	
+	gauss.gaussian(sigma);
+	gauss.gaussianDeriv(sigma);
 	gaussLength = gauss.getGaussianLength();
 	
-	#pragma omp parallel num_threads(NUMTHREADS)
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				gradient.horizontalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
-			#pragma omp task
-				gradient.verticalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
-		}
-	}
+	gradient.horizontalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
+	gradient.verticalGradient(image.matrix, gauss.g, gauss.g_deriv, imgHeight, imgWidth, gaussLength);
 	
 	gradient.magnitudeGradient(gradient.vertical, gradient.horizontal, imgHeight, imgWidth);
 
@@ -85,49 +62,30 @@ int main(int argc, char** argv)
 	
 	auto algorithm_stop = high_resolution_clock::now();
 	
-	#pragma omp parallel
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				writeOut(image, gradient.horizontal, "horizontalGradient.pgm", imgHeight, imgWidth);
-			#pragma omp task
-				writeOut(image, gradient.vertical, "verticalGradient.pgm", imgHeight, imgWidth);
-			#pragma omp task
-				writeOut(image, gradient.magnitude, "magnitudeGradient.pgm", imgHeight, imgWidth);
-			#pragma omp task
-				writeOut(image, gradient.gradient, "iangleGradient.pgm", imgHeight, imgWidth);
-			#pragma omp task
-				writeOut(image, suppression.output, "suppression.pgm", imgHeight, imgWidth);
-			#pragma omp task
-				writeOut(image, hysteresis.edges, "edges.pgm", imgHeight, imgWidth);
-		}
-	}
+	writeOut(image, gradient.horizontal, "horizontalGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.vertical, "verticalGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.magnitude, "magnitudeGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, gradient.gradient, "iangleGradient.pgm", imgHeight, imgWidth);
+	writeOut(image, suppression.output, "suppression.pgm", imgHeight, imgWidth);
+	writeOut(image, hysteresis.edges, "edges.pgm", imgHeight, imgWidth);
 	
-	#pragma omp parallel
-	{
-		#pragma omp single
-		{
-			#pragma omp task
-				gauss.deallocateMatrix();
-			#pragma omp task
-				gradient.deallocateMatrix(imgHeight);
-			#pragma omp task
-				suppression.deallocateMatrix(imgHeight);
-			#pragma omp task
-				hysteresis.deallocateMatrix(imgHeight);
-			#pragma omp task
-				image.deallocateMatrix();
-		}
-	}
+	gauss.deallocateMatrix();
+	gradient.deallocateMatrix(imgHeight);
+	suppression.deallocateMatrix(imgHeight);
+	hysteresis.deallocateMatrix(imgHeight);
+	image.deallocateMatrix();
 	
 	auto program_stop = high_resolution_clock::now();
 	
 	auto algorithm_duration = duration_cast<microseconds>(algorithm_stop - algorithm_start);
-	std::cout << "Time taken by canny edge detector algorithm: " << algorithm_duration.count() << " us" << std::endl;
+	algoTime = algorithm_duration.count();
+	std::cout << "Time taken by canny edge detector algorithm: " << algoTime << " us" << std::endl;
 	
 	auto program_duration = duration_cast<microseconds>(program_stop - program_start);
 	std::cout << "Total time taken by program: " << program_duration.count() << " us" << std::endl;
+	
+	saveTime(algoTime, imgHeight);
+	
 	return 0;
 }
 
@@ -150,5 +108,15 @@ void writeOut(pgmImage image, double** matrixtoWrite, const char* outName, int i
 		delete[] outMatrix[i];
 	delete[] outMatrix;
 	
+	return;
+}
+
+void saveTime(int time, int size) {
+	std::ofstream csvFile;
+	std::string Str;
+	csvFile.open("timings.csv", std::ios::app);
+	Str = std::to_string(size) + "," + std::to_string(NUMTHREADS) + "," + std::to_string(time) + "\n";
+	csvFile << Str;
+	csvFile.close();
 	return;
 }
