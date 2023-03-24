@@ -30,22 +30,22 @@ int main(int argc, char **argv){
     cudaMalloc((void**)&d_a, sizeof(int) * N);
     cudaMalloc((void**)&d_b, sizeof(int) * N);
     cudaMalloc((void**)&d_out, sizeof(int) * N);
-
+    
+    t = clock();
+    
     // Transfer data from host to device memory
     cudaMemcpy(d_a, h_a, sizeof(int) * N, cudaMemcpyHostToDevice);
     cudaMemcpy(d_b, h_b, sizeof(int) * N, cudaMemcpyHostToDevice);
-    
-    t = clock();
     
     // Executing kernel
     int blockSize = 256;
     int gridSize = ((N + blockSize) / blockSize);
     vector_add<<<gridSize,blockSize>>>(d_out, d_a, d_b, N);
     
-    t = clock() - t;
-    
     // Transfer data back to host memory
     cudaMemcpy(h_out, d_out, sizeof(int) * N, cudaMemcpyDeviceToHost);
+    
+    t = clock() - t;
     
     // Print results
     /*for (int i = 0; i < N; i++) {

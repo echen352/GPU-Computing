@@ -13,10 +13,10 @@ public:
 	void horizontalGradient(double** image, double* gauss, double* gaussDeriv, int imgHeight, int imgWidth, int gaussLength);
 	void verticalGradient(double** image, double* gauss, double* gaussDeriv, int imgHeight, int imgWidth, int gaussLength);
 	void magnitudeGradient(double** vertical, double** horizontal, int height, int width);
-	double** transposeToVertical(double* matrix, int height, int width);
-	double** transposeToHorizontal(double* matrix, int height, int width);
-	double** reverseSign(double** matrix, int height, int width, int dir);
-	double** allocateGradientMatrix(int height, int width);
+	void transposeToVertical(double*** transposedMatrix, double** matrix, int height, int width);
+	void transposeToHorizontal(double*** transposedMatrix, double** matrix, int height, int width);
+	void reverseSign(double*** reversedMatrix, double*** matrix, int height, int width, int dir);
+	void allocateGradientMatrix(double*** newMatrix, int height, int width);
 	void deallocateMatrix(int rows);
 };
 
@@ -33,17 +33,26 @@ void Gradient::horizontalGradient(double** image, double* gauss, double* gaussDe
 	double** horizontalGaussDeriv;
 	double** flippedGaussDeriv;
 
-	verticalGauss = transposeToVertical(gauss, gaussLength, 1);
+	//verticalGauss
+	allocateGradientMatrix(&verticalGauss, gaussLength, 1);
+	transposeToVertical(&verticalGauss, &gauss, gaussLength, 1);
+	
+	//tempHorizontal
+	allocateGradientMatrix(&tempHorizontal, imgHeight, imgWidth);
+	convolve(&tempHorizontal, &image, &verticalGauss, imgHeight, imgWidth, gaussLength, 1);
 
-	tempHorizontal = convolve(image, verticalGauss, imgHeight, imgWidth, gaussLength, 1);
-
-	horizontalGaussDeriv = allocateGradientMatrix(1, gaussLength);
+	//horizontalGaussDeriv
+	allocateGradientMatrix(&horizontalGaussDeriv, 1, gaussLength);
 	for (int i = 0; i < gaussLength; i++)
 		horizontalGaussDeriv[0][i] = gaussDeriv[i];
 
-	flippedGaussDeriv = reverseSign(horizontalGaussDeriv, 1, gaussLength, 0);
-
-	this->horizontal = convolve(tempHorizontal, flippedGaussDeriv, imgHeight, imgWidth, 1, gaussLength);
+	//flippedGaussDeriv
+	allocateGradientMatrix(&flippedGaussDeriv, 1, gaussLength);
+	reverseSign(&flippedGaussDeriv, &horizontalGaussDeriv, 1, gaussLength, 0);
+	
+	//horizontal
+	allocateGradientMatrix(&horizontal, imgHeight, imgWidth);
+	convolve(&horizontal, &tempHorizontal, &flippedGaussDeriv, imgHeight, imgWidth, 1, gaussLength);
 
 	for (int i = 0; i < gaussLength; i++)
 		free(verticalGauss[i]);
@@ -60,6 +69,7 @@ void Gradient::horizontalGradient(double** image, double* gauss, double* gaussDe
 	for (int i = 0; i < 1; i++)
 		free(flippedGaussDeriv[i]);
 	free(flippedGaussDeriv);
+	
 	return;
 }
 
@@ -69,15 +79,25 @@ void Gradient::verticalGradient(double** image, double* gauss, double* gaussDeri
 	double** verticalGaussDeriv;
 	double** flippedGaussDeriv;
 
-	horizontalGauss = transposeToHorizontal(gauss, 1, gaussLength);
+	//horizontalGauss
+	allocateGradientMatrix(&horizontalGauss, imgHeight, imgWidth);
+	transposeToHorizontal(&horizontalGauss, &gauss, 1, gaussLength);
 
-	tempVertical = convolve(image, horizontalGauss, imgHeight, imgWidth, 1, gaussLength);
+	//tempVertical
+	allocateGradientMatrix(&tempVertical, imgHeight, imgWidth);
+	convolve(&tempVertical, &image, &horizontalGauss, imgHeight, imgWidth, 1, gaussLength);
 
-	verticalGaussDeriv = transposeToVertical(gaussDeriv, gaussLength, 1);
+	//verticalGaussDeriv
+	allocateGradientMatrix(&verticalGaussDeriv, gaussLength, 1);
+	transposeToVertical(&verticalGaussDeriv, &gaussDeriv, gaussLength, 1);
 
-	flippedGaussDeriv = reverseSign(verticalGaussDeriv, gaussLength, 1, 1);
+	//flippedGaussDeriv
+	allocateGradientMatrix(&flippedGaussDeriv, gaussLength, 1);
+	reverseSign(&flippedGaussDeriv, &verticalGaussDeriv, gaussLength, 1, 1);
 
-	this->vertical = convolve(tempVertical, flippedGaussDeriv, imgHeight, imgWidth, gaussLength, 1);
+	//vertical
+	allocateGradientMatrix(&vertical, imgHeight, imgWidth);
+	convolve(&vertical, &tempVertical, &flippedGaussDeriv, imgHeight, imgWidth, gaussLength, 1);
 
 	for (int i = 0; i < 1; i++ )
 		free(horizontalGauss[i]);
@@ -94,15 +114,18 @@ void Gradient::verticalGradient(double** image, double* gauss, double* gaussDeri
 	for (int i = 0; i < gaussLength; i++)
 		free(flippedGaussDeriv[i]);
 	free(flippedGaussDeriv);
+	
 	return;
 }
 
 void Gradient::magnitudeGradient(double** vertical, double** horizontal, int height, int width) {
 	double verticalSquare;
 	double horizontalSquare;
-
-	this->magnitude = allocateGradientMatrix(height, width);
-	this->gradient = allocateGradientMatrix(height, width);
+	
+	//magnitude
+	allocateGradientMatrix(&magnitude, height, width);
+	//gradient
+	allocateGradientMatrix(&gradient, height, width);
 
 	for (int x = 0; x < height; x++) {
 		for (int y = 0; y < width; y++) {
@@ -116,64 +139,53 @@ void Gradient::magnitudeGradient(double** vertical, double** horizontal, int hei
 	return;
 }
 
-double** Gradient::transposeToVertical(double* matrix, int height, int width) {
-	double** transposedMatrix;
+void Gradient::transposeToVertical(double*** transposedMatrix, double** matrix, int height, int width) {
 
-	transposedMatrix = allocateGradientMatrix(height, width);
-
-	for (int i = 0; i < height; i++) {
-		transposedMatrix[i][0] = matrix[i];
-	}
-	return transposedMatrix;
+	for (int i = 0; i < height; i++)
+		(*transposedMatrix)[i][0] = (*matrix)[i];
+	
+	return;
 }
 
-double** Gradient::transposeToHorizontal(double* matrix, int height, int width) {
-	double** transposedMatrix;
+void Gradient::transposeToHorizontal(double*** transposedMatrix, double** matrix, int height, int width) {
 
-	transposedMatrix = allocateGradientMatrix(height, width);
-
-	for (int i = 0; i < width; i++) {
-		transposedMatrix[0][i] = matrix[i];
-	}
-	return transposedMatrix;
+	for (int i = 0; i < width; i++)
+		(*transposedMatrix)[0][i] = (*matrix)[i];
+	
+	return;
 }
 
-double** Gradient::reverseSign(double** matrix, int height, int width, int dir) {
-	double** reversedMatrix;
-	reversedMatrix = allocateGradientMatrix(height, width);
+void Gradient::reverseSign(double*** reversedMatrix, double*** matrix, int height, int width, int dir) {
 
 	if (dir == 1) {
-		for (int i = 0; i < height; i++) {
-			reversedMatrix[i][0] = matrix[i][0] * -1;
-		}
+		for (int i = 0; i < height; i++)
+			(*reversedMatrix)[i][0] = (*matrix)[i][0] * -1;
 	}
 	else if (dir == 0) {
-		for (int i = 0; i < width; i++) {
-			reversedMatrix[0][i] = matrix[0][i] * -1;
-		}
+		for (int i = 0; i < width; i++)
+			(*reversedMatrix)[0][i] = (*matrix)[0][i] * -1;
 	}
 
-	return reversedMatrix;
+	return;
 }
 
-double** Gradient::allocateGradientMatrix(int height, int width) {
-	double** newMatrix;
+void Gradient::allocateGradientMatrix(double*** newMatrix, int height, int width) {
 
-	newMatrix = (double**)malloc(sizeof(double*)* height);
+	*newMatrix = (double**)malloc(sizeof(double*)* height);
 	if (newMatrix == NULL) {
 		std::cout << "Error allocating memory" << std::endl;
 		exit(EXIT_FAILURE);
 	}
 
 	for (int i = 0; i < height; i++) {
-		newMatrix[i] = (double*)malloc(sizeof(double) * width);
-		if (newMatrix[i] == NULL) {
+		(*newMatrix)[i] = (double*)malloc(sizeof(double) * width);
+		if ((*newMatrix)[i] == NULL) {
 			std::cout << "Error allocating memory" << std::endl;
 			exit(EXIT_FAILURE);
 		}
 	}
 
-	return newMatrix;
+	return;
 }
 
 void Gradient::deallocateMatrix(int rows) {
