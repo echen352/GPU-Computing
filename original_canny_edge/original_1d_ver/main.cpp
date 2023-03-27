@@ -1,13 +1,11 @@
 #define _USE_MATH_DEFINES
 #define SIGMA 0.8
-#define BLOCKSIZE 16
 
 #include "pgm.h"
 #include "gaussian.h"
 #include "gradient.h"
 #include "nonmaxSuppresion.h"
 #include "hysteresis.h"
-#include <cuda.h>
 
 void writeOut(pgmImage image, Gradient gradient, nonMaxSup suppression, Hysteresis hysteresis, int imgHeight, int imgWidth);
 

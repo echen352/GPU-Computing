@@ -1,0 +1,8 @@
+# ignore pgm files
+*.pgm
+
+# ignore object files
+*.o
+
+# ignore temp R files
+*.Rhistory
