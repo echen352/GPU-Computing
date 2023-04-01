@@ -7,7 +7,6 @@ public:
 	nonMaxSup();
 	double* output;
 	void runNonMaxSup(double* gxy, double* iangle, int gxyHeight, int gxyWidth, int BLOCKSIZE);
-	void nonMaxSuppression(double* gxy, double* iangle, int gxyHeight, int gxyWidth);
 	void deallocateVector();
 };
 
@@ -87,41 +86,6 @@ __global__ void cuda_nonMaxSuppression(double* output, double* gxy, double* iang
 					output[global_i * gxyWidth + global_j] = 0;
 			}
 		}
-
-	return;
-}
-
-void nonMaxSup::nonMaxSuppression(double* gxy, double* iangle, int gxyHeight, int gxyWidth) {
-	double theta;
-	double center;
-
-	for (int x = 0; x < gxyHeight; x++) {
-		for (int y = 0; y < gxyWidth; y++) {
-			theta = iangle[x * gxyWidth + y];
-			if (theta < 0)
-				theta += M_PI;
-			theta = theta * (180 / M_PI);
-			if (x - 1 > -1 && x + 1 < gxyHeight && y - 1 > -1 && y + 1 < gxyWidth) {
-				center = gxy[x * gxyWidth + y];
-				if (theta <= 22.5 || theta > 157.5) {
-					if (center < gxy[(x - 1) * gxyWidth + y] || center < gxy[(x + 1) * gxyWidth + y])
-						this->output[x * gxyWidth + y] = 0;
-				}
-				else if (theta > 22.5 && theta <= 67.5) {
-					if (center < gxy[(x - 1) * gxyWidth + (y - 1)] || center < gxy[(x + 1) * gxyWidth + (y + 1)])
-						this->output[x * gxyWidth + y] = 0;
-				}
-				else if (theta > 67.5 && theta <= 112.5) {
-					if (center < gxy[x * gxyWidth + (y - 1)] || center < gxy[x * gxyWidth + (y + 1)])
-						this->output[x * gxyWidth + y] = 0;
-				}
-				else if (theta > 112.5 && theta <= 157.5) {
-					if (center < gxy[(x + 1) * gxyWidth + (y - 1)] || center < gxy[(x - 1) * gxyWidth + (y + 1)])
-						this->output[x * gxyWidth + y] = 0;
-				}
-			}
-		}
-	}
 
 	return;
 }
