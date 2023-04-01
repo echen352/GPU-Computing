@@ -25,7 +25,12 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth) {
     int tHi, tLo;
     bool neighbors8Bool;
     double* hysteresisImage;
-
+    
+    clock_t start, end;
+    double duration;
+    
+    start = clock();
+    
     setupArray(image, imgHeight, imgWidth);
 
     std::sort(arr.begin(), arr.end());
@@ -48,6 +53,12 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth) {
         }
     }
     
+    end = clock();
+    duration = ((double)end - start)/CLOCKS_PER_SEC;
+    printf("Hysteresis: %f sec\n", duration);
+    
+    start = clock();   
+    
     edges = (double*)malloc(sizeof(double)*imgHeight*imgWidth);
     for (int i = 0; i < imgHeight * imgWidth; i++) {
     	this->edges[i] = hysteresisImage[i];
@@ -64,6 +75,10 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth) {
             }
         }
     }
+    
+    end = clock();
+    duration = ((double)end - start)/CLOCKS_PER_SEC;
+    printf("Edge Linking: %f sec\n", duration);
     
     free(hysteresisImage);
     

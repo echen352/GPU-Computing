@@ -1,6 +1,5 @@
 #define _USE_MATH_DEFINES
 #define SIGMA 0.8
-#define BLOCKSIZE 16
 
 #include "pgm.h"
 #include "gaussian.h"
@@ -19,15 +18,19 @@ int main(int argc, char** argv)
 	Gradient gradient;
 	nonMaxSup suppression;
 	Hysteresis hysteresis;
+	
+	clock_t start, end;
+	double duration;
 
 	const char* imageName;
 	double sigma = SIGMA;
-	int imgHeight, imgWidth, gaussLength;
+	int imgHeight, imgWidth, gaussLength, blocksize;
 
-	if (argc == 2) {
+	if (argc == 3) {
 		imageName = argv[1];
+		blocksize = atoi(argv[2]);
 	} else {
-		std::cout << "Not enough inputs: expected 2, received " << argc << std::endl;
+		std::cout << "Not enough inputs: expected 3, received " << argc << std::endl;
 		return -1;
 	}
 
@@ -36,20 +39,28 @@ int main(int argc, char** argv)
 	imgHeight = image.getHeight();
 	imgWidth = image.getWidth();
 	
+	start = clock();
+	
 	gauss.gaussian(sigma);
 	gauss.gaussianDeriv(sigma);
 	gaussLength = gauss.getGaussianLength();
 	
-	gradient.saveDim(imgHeight, imgWidth, gaussLength);
+	gradient.saveDim(imgHeight, imgWidth, gaussLength, blocksize);
 	gradient.horizontalGradient(image.imgVector, gauss.g, gauss.g_deriv);
 	gradient.verticalGradient(image.imgVector, gauss.g, gauss.g_deriv);
 	gradient.magnitudeGradient();
 
-	suppression.nonMaxSuppression(gradient.magnitude, gradient.gradient, imgHeight, imgWidth);
+	suppression.runNonMaxSup(gradient.magnitude, gradient.gradient, imgHeight, imgWidth, blocksize);
 
-	hysteresis.getHysteresis(suppression.output, imgHeight, imgWidth);
+	hysteresis.getHysteresis(suppression.output, imgHeight, imgWidth, blocksize);
 	
+	end = clock();
+	duration = ((double)end - start)/CLOCKS_PER_SEC;
+	printf("Algorithm Time: %f sec\n", duration);
+	
+	std::cout << "Saving results to file...\n";
 	writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
+	std::cout << "Done!\n";
 	
 	gauss.deallocateVector();
 	gradient.deallocateVector();

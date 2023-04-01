@@ -6,3 +6,6 @@
 
 # ignore temp R files
 *.Rhistory
+
+# ignore executables
+*.e*

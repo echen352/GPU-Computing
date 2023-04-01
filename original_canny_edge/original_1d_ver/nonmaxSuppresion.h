@@ -18,11 +18,16 @@ nonMaxSup::nonMaxSup() {
 void nonMaxSup::nonMaxSuppression(double* gxy, double* iangle, int gxyHeight, int gxyWidth) {
 	double theta;
 	double center;
+	
+	clock_t start, end;
+	double duration;
 
 	this->output = (double*)malloc(sizeof(double) * gxyHeight * gxyWidth);
 	for (int i = 0; i < gxyHeight * gxyWidth; i++)
 		this->output[i] = gxy[i];
-
+		
+	start = clock();
+	
 	for (int x = 0; x < gxyHeight; x++) {
 		for (int y = 0; y < gxyWidth; y++) {
 			theta = iangle[x * gxyWidth + y];
@@ -50,6 +55,10 @@ void nonMaxSup::nonMaxSuppression(double* gxy, double* iangle, int gxyHeight, in
 			}
 		}
 	}
+
+	end = clock();
+	duration = ((double)end - start)/CLOCKS_PER_SEC;
+	printf("NonMax Suppression: %f sec\n", duration);
 
 	return;
 }

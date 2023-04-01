@@ -17,6 +17,9 @@ int main(int argc, char** argv)
 	Gradient gradient;
 	nonMaxSup suppression;
 	Hysteresis hysteresis;
+	
+	clock_t start, end;
+	double duration;
 
 	const char* imageName;
 	double sigma = SIGMA;
@@ -34,6 +37,8 @@ int main(int argc, char** argv)
 	imgHeight = image.getHeight();
 	imgWidth = image.getWidth();
 	
+	start = clock();
+	
 	gauss.gaussian(sigma);
 	gauss.gaussianDeriv(sigma);
 	gaussLength = gauss.getGaussianLength();
@@ -47,7 +52,13 @@ int main(int argc, char** argv)
 
 	hysteresis.getHysteresis(suppression.output, imgHeight, imgWidth);
 	
+	end = clock();
+	duration = ((double)end - start)/CLOCKS_PER_SEC;
+	printf("Algorithm Time: %f sec\n", duration);
+	
+	std::cout << "Saving results to file...\n";
 	writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
+	std::cout << "Done!\n";
 	
 	gauss.deallocateVector();
 	gradient.deallocateVector();
