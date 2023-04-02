@@ -9,6 +9,7 @@
 #include <cuda.h>
 
 void writeOut(pgmImage image, Gradient gradient, nonMaxSup suppression, Hysteresis hysteresis, int imgHeight, int imgWidth);
+void saveTime(double time, int size);
 
 int main(int argc, char** argv)
 {
@@ -59,7 +60,8 @@ int main(int argc, char** argv)
 	printf("Algorithm Time: %f sec\n", duration);
 	
 	std::cout << "Saving results to file...\n";
-	writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
+	//writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
+	saveTime(duration, imgWidth);
 	std::cout << "Done!\n";
 	
 	gauss.deallocateVector();
@@ -99,5 +101,13 @@ void writeOut(pgmImage image, Gradient gradient, nonMaxSup suppression, Hysteres
 	image.writeImage("edges.pgm", outVector);
 
 	delete[] outVector;
+	return;
+}
+
+void saveTime(double time, int size) {
+	FILE* f;
+	f = fopen("cuda_timings.csv", "a+");
+	fprintf(f, "%d,%f\n", size, time);
+	fclose(f);
 	return;
 }

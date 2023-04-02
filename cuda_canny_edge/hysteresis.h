@@ -5,14 +5,11 @@
 
 class Hysteresis
 {
-private:
-    std::vector<double> arr;
 public:
 	Hysteresis();
 	double* edges;
 	void getHysteresis(double* image, int imgHeight, int imgWidth, int BLOCKSIZE);
-	void setupArray(double* image, int height, int width);
-	int percentile(std::vector<double> vect, int percent);
+	int percentile(double** arr, int percent, int height, int width);
 	void deallocateVector();
 };
 
@@ -26,6 +23,7 @@ __device__ bool neighbors8(double* image, int height, int width, int x, int y);
 
 void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth, int BLOCKSIZE) {
     int tHi, tLo;
+    double* arr;
     double* hysteresisImage;
 
     clock_t start, end;
@@ -33,15 +31,16 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth, int B
     
     start = clock();
     
-    setupArray(image, imgHeight, imgWidth);
-
-    std::sort(arr.begin(), arr.end());
-    tHi = percentile(arr, 90);
+    arr = (double*)malloc(sizeof(double)*imgHeight*imgWidth);
+    memcpy(arr, image, sizeof(double)*imgHeight*imgWidth);
+    
+    std::sort(arr, arr + imgHeight*imgWidth);
+    tHi = percentile(&arr, 90, imgHeight, imgWidth);
+    if (tHi < 0) {printf("Error Calculating n percentile in Hystersis!");}
     tLo = (1 / 5) * tHi;
     
     hysteresisImage = (double*)malloc(sizeof(double)*imgHeight*imgWidth);
-	for (int i = 0; i < imgHeight * imgWidth; i++)
-		hysteresisImage[i] = image[i];
+    memcpy(hysteresisImage, image, sizeof(double)*imgHeight*imgWidth);
 		
 	//set block dimensions
 	dim3 dimBlock(BLOCKSIZE, BLOCKSIZE);
@@ -69,16 +68,15 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth, int B
 	start = clock(); 
 	  
     edges = (double*)malloc(sizeof(double)*imgHeight*imgWidth);
-	for (int i = 0; i < imgHeight * imgWidth; i++)
-		this->edges[i] = hysteresisImage[i];
+    memcpy(edges, hysteresisImage, sizeof(double)*imgHeight*imgWidth);
 		
     cudaMalloc((void **)&d_edges, sizeof(double) * imgHeight * imgWidth);
     cudaMalloc((void **)&d_hysteresisImage, sizeof(double) * imgHeight * imgWidth);
-    cudaMemcpy(d_edges, this->edges, sizeof(double) * imgHeight * imgWidth, cudaMemcpyHostToDevice);
+    cudaMemcpy(d_edges, edges, sizeof(double) * imgHeight * imgWidth, cudaMemcpyHostToDevice);
     cudaMemcpy(d_hysteresisImage, hysteresisImage, sizeof(double) * imgHeight * imgWidth, cudaMemcpyHostToDevice);
     cudaDeviceSynchronize();
     getEdges<<<dimGrid, dimBlock>>>(d_edges, d_hysteresisImage, imgHeight, imgWidth);
-    cudaMemcpy(this->edges, d_edges, sizeof(double) * imgHeight * imgWidth, cudaMemcpyDeviceToHost);
+    cudaMemcpy(edges, d_edges, sizeof(double) * imgHeight * imgWidth, cudaMemcpyDeviceToHost);
     cudaDeviceSynchronize();
     
     end = clock();
@@ -88,6 +86,7 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth, int B
     cudaFree(d_hysteresisImage);
     cudaFree(d_edges);
     
+    free(arr);
     free(hysteresisImage);
     
     return;
@@ -123,31 +122,14 @@ __global__ void getEdges(double* edges, double* hysteresisImage, int imgHeight, 
     return;
 }
 
-void Hysteresis::setupArray(double* image, int height, int width) {
-    double value;
-
-    for (int i = 0; i < height; i++) {
-        for (int j = 0; j < width; j++) {
-            value = image[i * width + j];
-            this->arr.push_back(value);
-        }
-    }
-
-    return;
-}
-
-int Hysteresis::percentile(std::vector<double> vect, int percent) {
-    std::vector<double> prcVector;
-    int n = vect.size();
+int Hysteresis::percentile(double** arr, int percent, int height, int width) {
+    int n = height * width;
     double p;
-    for (int i = 0; i < n; i++) {
+    
+    for (int i = n - 1; i > -1; i--) {
         p = 100 * (i + 0.5) / n;
-        prcVector.push_back(p);
-    }
-
-    for (int i = 0; i < n; i++) {
-        if (floor(prcVector[i]) == percent)
-            return vect[i];
+        if (ceil(p) == percent)
+        	return (*arr)[i];
     }
 
     return -1;

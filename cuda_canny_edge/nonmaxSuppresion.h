@@ -21,8 +21,7 @@ void nonMaxSup::runNonMaxSup(double* gxy, double* iangle, int gxyHeight, int gxy
 	double duration;
 
 	this->output = (double*)malloc(sizeof(double) * gxyHeight * gxyWidth);
-	for (int i = 0; i < gxyHeight * gxyWidth; i++)
-		this->output[i] = gxy[i];
+	memcpy(this->output, gxy, sizeof(double) * gxyHeight * gxyWidth);
 	
 	dim3 dimBlock(BLOCKSIZE, BLOCKSIZE);
 	dim3 dimGrid(ceil(gxyHeight/BLOCKSIZE), ceil(gxyWidth/BLOCKSIZE));
