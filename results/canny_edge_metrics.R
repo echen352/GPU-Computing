@@ -2,8 +2,8 @@ library(tidyverse)
 library(dplyr)
 
 s <- list(256, 512, 1024, 2048, 3072, 4096, 5120, 7680, 8192, 10240, 12800)
-cuda_timings <- read_csv("cuda_canny_edge/cuda_timings.csv")
-default_timings <- read_csv("original_canny_edge/default/default_timings.csv")
+cuda_timings <- read_csv("results/cuda_timings.csv")
+default_timings <- read_csv("results/default_timings.csv")
 
 colnames(cuda_timings) <- c("size","time")
 cdf <- data.frame(version=character(),size=integer(),time=double())
@@ -38,3 +38,11 @@ pdf %>%
   labs(title="Cuda vs Default Canny Edge Execution Times",
        x="Image Size", y="Time (sec)")
 
+sdf <- data.frame(size=integer(), Ts=double(), Tp=double(), speedup=double())
+for (x in s) {
+  tp <- cdf %>% filter(size == x)
+  ts <- ddf %>% filter(size == x)
+  su <- ts$time / tp$time
+  sdf[nrow(sdf) + 1,] <- c(x, ts$time, tp$time, su)
+}
+write.csv(sdf, file="results/speedup.csv")
