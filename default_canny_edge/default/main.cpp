@@ -58,7 +58,7 @@ int main(int argc, char** argv)
 	printf("Algorithm Time: %f sec\n", duration);
 	
 	std::cout << "Saving results to file...\n";
-	//writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
+	writeOut(image, gradient, suppression, hysteresis, imgHeight, imgWidth);
 	saveTime(duration, imgWidth);
 	std::cout << "Done!\n";
 	
