@@ -2,6 +2,10 @@
 #include <algorithm>
 #include <cmath>
 #include <stdio.h>
+#include <thrust/host_vector.h>
+#include <thrust/device_vector.h>
+#include <thrust/sort.h>
+#include <cstdlib>
 
 class Hysteresis
 {
@@ -33,8 +37,16 @@ void Hysteresis::getHysteresis(double* image, int imgHeight, int imgWidth, int B
     
     arr = (double*)malloc(sizeof(double)*imgHeight*imgWidth);
     memcpy(arr, image, sizeof(double)*imgHeight*imgWidth);
+    double* d_arr;
     
-    std::sort(arr, arr + imgHeight*imgWidth);
+    cudaMalloc((void **)&d_arr, sizeof(double)*imgHeight*imgWidth);
+    cudaMemcpy(d_arr, arr, sizeof(double)*imgHeight*imgWidth, cudaMemcpyHostToDevice);
+    cudaDeviceSynchronize();
+    thrust::device_ptr<double> ptr(d_arr);
+    thrust::sort(ptr, ptr + imgHeight*imgWidth);
+    cudaMemcpy(arr, d_arr, sizeof(double)*imgHeight*imgWidth, cudaMemcpyDeviceToHost);
+    cudaDeviceSynchronize();
+    cudaFree(d_arr);
     tHi = percentile(&arr, 90, imgHeight, imgWidth);
     if (tHi < 0) {printf("Error Calculating n percentile in Hystersis!");}
     tLo = (1 / 5) * tHi;
