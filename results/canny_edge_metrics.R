@@ -46,3 +46,9 @@ for (x in s) {
   sdf[nrow(sdf) + 1,] <- c(x, ts$time, tp$time, su)
 }
 write.csv(sdf, file="results/speedup.csv")
+
+sdf %>%
+  ggplot(aes(reorder(size,speedup), speedup)) +
+  geom_bar(stat="identity", position="dodge", fill="dodgerblue") +
+  labs(title="Cuda vs Default Canny Edge Speedup",
+       x="Image Size", y="Speedup")
